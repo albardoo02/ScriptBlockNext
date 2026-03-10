@@ -1,0 +1,28 @@
+name: ScriptBlockNext
+version: '1.0-SNAPSHOT'
+main: com.github.albardoo02.scriptBlockNext.ScriptBlockNext
+description: ScriptBlockPlusを改良したヤツ
+author: albardoo02
+website: https://github.com/albardoo02/ScriptBlockNext
+api-version: '1.13'
+softdepend: [Vault]
+
+commands:
+  scriptblocknext:
+    description: ScriptBlockNext commands
+    aliases:
+      - sbn
+      - sbp
+      - scriptblockplus
+    usage: |
+           /<command> reload - Reload the plugin.
+
+permissions:
+  scriptblocknext.*:
+    description: All permissions for ScriptBlockNext.
+    default: op
+    children:
+      scriptblocknext.command.*: true
+  scriptblocknext.command.*:
+    description: ScriptBlockNext command permissions.
+    default: op

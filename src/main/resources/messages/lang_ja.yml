@@ -1,0 +1,22 @@
+# エラーメッセージ
+error_only_player: "&cこのコマンドはプレイヤーのみ実行可能です！"
+error_invalid_type: "&c無効なトリガーです。interact, break, walk, hit を指定してください。"
+error_unknown_action: "&c不明なアクションです: {action}"
+error_no_money: "&cお金が足りません！ (必要: {amount})"
+error_no_item: "&cアイテムが足りません！ (必要: {item} x{amount})"
+
+# コマンドの使い方
+cmd_usage_main: "&c使用方法: /sbn <type> <action> [args] または /sbn reload"
+cmd_usage_action: "&c使用方法: /sbn <interact|break|walk|hit> <create|add|remove> [command]"
+cmd_usage_args: "&c使用方法: /sbn {type} {action} <コマンド>"
+cmd_reloaded: "&aプラグインのコンフィグをリロードしました。"
+
+# モード切り替え
+mode_creation: "&e新規作成モード({type})を有効にしました。対象のブロックを右クリックして登録してください: &f{commands}"
+mode_add: "&e機能追加モード({type})を有効にしました。対象のブロックを右クリックして追加してください: &f{commands}"
+mode_removal: "&c削除モード({type})を有効にしました。対象のブロックを右クリックして削除してください。"
+
+# 処理の成功
+success_registered: "&aスクリプト({type})をこのブロックに登録しました！"
+success_added: "&aスクリプト ({type}) を追加しました！ (合計:{count}コマンド)"
+success_removed: "&cこのブロックからスクリプト({type})を削除しました。"
