@@ -1,12 +1,14 @@
 package com.github.albardoo02.scriptBlockNext
 
 import com.github.albardoo02.scriptBlockNext.command.ScriptCommand
+import com.github.albardoo02.scriptBlockNext.hook.DiscordSRVManager
 import com.github.albardoo02.scriptBlockNext.hook.LuckPermsManager
 import com.github.albardoo02.scriptBlockNext.hook.MythicMobsManager
 import com.github.albardoo02.scriptBlockNext.listener.InteractListener
 import com.github.albardoo02.scriptBlockNext.listener.ScriptListener
 import com.github.albardoo02.scriptBlockNext.manager.MessageManager
 import com.github.albardoo02.scriptBlockNext.hook.PlaceholderManager
+import com.github.albardoo02.scriptBlockNext.hook.VaultManager
 import com.github.albardoo02.scriptBlockNext.manager.ScriptManager
 import net.milkbowl.vault.economy.Economy
 import org.bukkit.plugin.java.JavaPlugin
@@ -19,21 +21,18 @@ class ScriptBlockNext : JavaPlugin() {
         private set
     }
 
-    var economy: Economy? = null
-
     override fun onEnable() {
-        instance = this
         MessageManager.init(this)
-        PlaceholderManager.init(this)
 
-        MythicMobsManager.init(this)
+        DiscordSRVManager.init(this)
         LuckPermsManager.init(this)
-        val hasVault = setupEconomy()
+        MythicMobsManager.init(this)
+        PlaceholderManager.init(this)
+        VaultManager.init(this)
 
         disableAndRenameOldPlugin()
 
         val hookedPlugins = mutableListOf<String>()
-        if (hasVault) hookedPlugins.add("Vault")
         if (server.pluginManager.isPluginEnabled("PlaceholderAPI")) hookedPlugins.add("PlaceholderAPI")
         if (MythicMobsManager.isHooked) hookedPlugins.add("MythicMobs")
         if (LuckPermsManager.isHooked) hookedPlugins.add("LuckPerms")
@@ -82,14 +81,5 @@ class ScriptBlockNext : JavaPlugin() {
         } catch (e: Exception) {
             logger.warning("JARファイルの特定に失敗しました。手動で旧プラグインを削除してください。")
         }
-    }
-
-    private fun setupEconomy(): Boolean {
-        if (!server.pluginManager.isPluginEnabled("Vault")) {
-            return false
-        }
-        val rsp = server.servicesManager.getRegistration(Economy::class.java) ?: return false
-        economy = rsp.provider
-        return economy != null
     }
 }

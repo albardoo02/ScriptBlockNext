@@ -2,9 +2,11 @@ package com.github.albardoo02.scriptBlockNext.executor
 
 import com.github.albardoo02.scriptBlockNext.ScriptBlockNext
 import com.github.albardoo02.scriptBlockNext.data.ScriptData
+import com.github.albardoo02.scriptBlockNext.hook.DiscordSRVManager
 import com.github.albardoo02.scriptBlockNext.hook.LuckPermsManager
 import com.github.albardoo02.scriptBlockNext.hook.MythicMobsManager
 import com.github.albardoo02.scriptBlockNext.hook.PlaceholderManager
+import com.github.albardoo02.scriptBlockNext.hook.VaultManager
 import com.github.albardoo02.scriptBlockNext.manager.ScriptManager
 import com.github.albardoo02.scriptBlockNext.manager.sendMsg
 import net.md_5.bungee.api.ChatMessageType
@@ -66,16 +68,15 @@ object ScriptExecutor {
             val isInverted = cmd.startsWith("!")
             val cleanCmd = if (isInverted) cmd.substring(1) else cmd
 
-            if (cleanCmd.startsWith("\$cost:")) {
-                val cost = cleanCmd.substringAfter("\$cost:").toDoubleOrNull() ?: 0.0
-                val eco = ScriptBlockNext.instance.economy
+            if (cleanCmd.startsWith($$"$cost:")) {
+                val cost = cleanCmd.substringAfter($$"$cost:").toDoubleOrNull() ?: 0.0
                 if (isInverted) {
-                    if (eco != null && eco.has(player, cost)) return
+                    if (VaultManager.has(player, cost)) return
                 } else {
                     requiredMoney += cost
                 }
-            } else if (cleanCmd.startsWith("\$item:")) {
-                val parts = cleanCmd.substringAfter("\$item:").split(":")
+            } else if (cleanCmd.startsWith($$"$item:")) {
+                val parts = cleanCmd.substringAfter($$"$item:").split(":")
                 if (parts.size >= 2) {
                     val mat = Material.matchMaterial(parts[0].uppercase()) ?: continue
                     val amount = parts[1].toIntOrNull() ?: 1
@@ -112,6 +113,14 @@ object ScriptExecutor {
                 val amount = parts.getOrNull(1)?.toIntOrNull() ?: 1
                 val hasEnough = MythicMobsManager.countMythicItem(player, mythicId) >= amount
                 if (if (isInverted) hasEnough else !hasEnough) return
+            } else if (cleanCmd.startsWith("@drole:", ignoreCase = true)) {
+                val roleId = cleanCmd.substringAfter(":")
+                val hasRole = DiscordSRVManager.hasRole(player.uniqueId, roleId)
+                if (if (isInverted) hasRole else !hasRole) return
+            } else if (cleanCmd.startsWith("@dchannel:", ignoreCase = true)) {
+                val channelId = cleanCmd.substringAfter(":")
+                val isInChannel = DiscordSRVManager.getVoiceChannelId(player.uniqueId) == channelId
+                if (if (isInverted) isInChannel else !isInChannel) return
             } else if (cleanCmd.startsWith("@if ")) {
                 val ifArgs = cleanCmd.substringAfter("@if ").split(" ", limit = 4)
                 if (ifArgs.size >= 3) {
@@ -140,13 +149,12 @@ object ScriptExecutor {
             }
         }
 
-        val eco = ScriptBlockNext.instance.economy
-        if (requiredMoney > 0.0 && eco != null) {
-            if (!eco.has(player, requiredMoney)) {
+        if (requiredMoney > 0.0) {
+            if (!VaultManager.has(player, requiredMoney)) {
                 player.sendMsg("error_no_money", "amount" to requiredMoney.toString())
                 return
             }
-            eco.withdrawPlayer(player, requiredMoney)
+            VaultManager.withdraw(player, requiredMoney)
         }
 
         for (item in requiredItems) {
@@ -178,12 +186,13 @@ object ScriptExecutor {
 
             val isInverted = cmd.startsWith("!")
             val activeCmd = if (isInverted) cmd.substring(1) else cmd
-            if (activeCmd.startsWith("\$cost:") || activeCmd.startsWith("\$item:") ||
+            if (activeCmd.startsWith($$"$cost:") || activeCmd.startsWith($$"$item:") ||
                 activeCmd.startsWith("@if ") || activeCmd.startsWith("@cooldown:") ||
                 activeCmd.startsWith("@oldcooldown:") || activeCmd.startsWith("@action:") ||
                 activeCmd.startsWith("@hand:") ||
                 activeCmd.startsWith("@mythic:", ignoreCase = true) || activeCmd.startsWith("@mythicItem:", ignoreCase = true) ||
-                activeCmd.startsWith($$"$mythic:", ignoreCase = true) || activeCmd.startsWith($$"$mythicItem:", ignoreCase = true)) continue
+                activeCmd.startsWith($$"$mythic:", ignoreCase = true) || activeCmd.startsWith($$"$mythicItem:", ignoreCase = true) ||
+                activeCmd.startsWith("@drole:", ignoreCase = true) || activeCmd.startsWith("@dchannel:", ignoreCase = true)) continue
             if (activeCmd.startsWith("@delay:")) {
                 val rawData = activeCmd.substringAfter("@delay:")
                 val braceIdx = rawData.indexOf('{')
@@ -266,8 +275,8 @@ object ScriptExecutor {
                     val titleData = activeCmd.substringAfter("@title:").split("/")
                     player.sendTitle(titleData.getOrNull(0) ?: "", titleData.getOrNull(1) ?: "", 10, 70, 20)
                 }
-                activeCmd.startsWith("@bypassroup:") -> {
-                    val data = activeCmd.substringAfter("@bypassgroup:").trim()
+                activeCmd.startsWith("@bypassgroup:", ignoreCase = true) -> {
+                    val data = activeCmd.substringAfter(":").trim()
                     val spaceIdx = data.indexOf(' ')
                     if (spaceIdx != -1) {
                         val groupInfo = data.substring(0, spaceIdx)
@@ -281,13 +290,19 @@ object ScriptExecutor {
                         }
                     }
                 }
-                activeCmd.startsWith("@groupadd:") -> {
-                    val group = activeCmd.substringAfter("@groupadd:").substringAfter("/")
+                activeCmd.startsWith("@groupadd:", ignoreCase = true) -> {
+                    val group = activeCmd.substringAfter(":").substringAfter("/")
                     LuckPermsManager.addGroup(player, group)
                 }
-                activeCmd.startsWith("@groupremove:") -> {
-                    val group = activeCmd.substringAfter("@groupremove:").substringAfter("/")
+                activeCmd.startsWith("@groupremove:", ignoreCase = true) -> {
+                    val group = activeCmd.substringAfter(":").substringAfter("/")
                     LuckPermsManager.removeGroup(player, group)
+                }
+                activeCmd.startsWith("@droleadd:", ignoreCase = true) -> {
+                    DiscordSRVManager.addRole(player.uniqueId, activeCmd.substringAfter(":"))
+                }
+                activeCmd.startsWith("@droleremove:", ignoreCase = true) -> {
+                    DiscordSRVManager.removeRole(player.uniqueId, activeCmd.substringAfter(":"))
                 }
                 else -> {
                     if (!activeCmd.startsWith("@") && !activeCmd.startsWith("$")) player.performCommand(activeCmd.trim().removePrefix("/"))

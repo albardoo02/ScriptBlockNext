@@ -1,17 +1,26 @@
 package com.github.albardoo02.scriptBlockNext.command
 
 import com.github.albardoo02.scriptBlockNext.hook.MythicMobsManager
+import com.github.albardoo02.scriptBlockNext.hook.LuckPermsManager
 import com.github.albardoo02.scriptBlockNext.manager.ScriptManager
+import com.github.albardoo02.scriptBlockNext.manager.SelectorManager
 import com.github.albardoo02.scriptBlockNext.manager.sendMsg
+import com.github.albardoo02.scriptBlockNext.ScriptBlockNext
+import com.github.albardoo02.scriptBlockNext.hook.DiscordSRVManager
+import com.github.albardoo02.scriptBlockNext.hook.VaultManager
 import org.bukkit.Bukkit
+import org.bukkit.Material
 import org.bukkit.command.Command
 import org.bukkit.command.CommandExecutor
 import org.bukkit.command.CommandMap
 import org.bukkit.command.CommandSender
 import org.bukkit.command.TabCompleter
 import org.bukkit.entity.Player
+import org.bukkit.inventory.ItemStack
 import org.bukkit.plugin.SimplePluginManager
 import java.lang.reflect.Field
+import kotlin.math.max
+import kotlin.math.min
 
 class ScriptCommand: CommandExecutor, TabCompleter {
 
@@ -27,7 +36,18 @@ class ScriptCommand: CommandExecutor, TabCompleter {
     }
 
     override fun onCommand(sender: CommandSender, command: Command, label: String, args: Array<out String>): Boolean {
-        if (args[0].lowercase() == "reload") {
+        if (args.isEmpty()) {
+            if (sender is Player) sender.sendMsg("cmd_usage_main")
+            return true
+        }
+
+        val firstArg = args[0].lowercase()
+
+        if (firstArg == "reload") {
+            if (!sender.hasPermission("scriptblocknext.command.reload")) {
+                sender.sendMsg("error_no_permission")
+                return true
+            }
             ScriptManager.loadScripts()
             sender.sendMsg("cmd_reloaded")
             return true
@@ -38,8 +58,65 @@ class ScriptCommand: CommandExecutor, TabCompleter {
             return true
         }
 
-        if (args.isEmpty()) {
-            sender.sendMsg("cmd_usage_main")
+        if (firstArg == "tool") {
+            if (!sender.hasPermission("scriptblocknext.command.tool")) {
+                sender.sendMsg("error_no_permission")
+                return true
+            }
+            val selector = ItemStack(Material.BLAZE_ROD)
+            val meta = selector.itemMeta
+            meta?.setDisplayName("§bSBN Block Selector")
+            meta?.lore = listOf("§7左クリックで Pos1 を設定", "§7右クリックで Pos2 を設定", "§7/sbn selector remove で一括削除")
+            selector.itemMeta = meta
+            sender.inventory.addItem(selector)
+            sender.sendMsg("tool_given")
+            return true
+        }
+
+        if (firstArg == "selector") {
+            if (!sender.hasPermission("scriptblocknext.command.selector")) {
+                sender.sendMsg("error_no_permission")
+                return true
+            }
+            if (args.size < 2) {
+                sender.sendMsg("cmd_usage_selector")
+                return true
+            }
+            val subCmd = args[1].lowercase()
+
+            if (subCmd == "remove") {
+                val selection = SelectorManager.getSelection(sender)
+                if (selection == null) {
+                    sender.sendMsg("error_selection_incomplete")
+                    return true
+                }
+
+                val p1 = selection.first
+                val p2 = selection.second
+                val world = p1.world
+                var count = 0
+
+                val minX = min(p1.blockX, p2.blockX)
+                val minY = min(p1.blockY, p2.blockY)
+                val minZ = min(p1.blockZ, p2.blockZ)
+                val maxX = max(p1.blockX, p2.blockX)
+                val maxY = max(p1.blockY, p2.blockY)
+                val maxZ = max(p1.blockZ, p2.blockZ)
+
+                for (x in minX..maxX) {
+                    for (y in minY..maxY) {
+                        for (z in minZ..maxZ) {
+                            val loc = org.bukkit.Location(world, x.toDouble(), y.toDouble(), z.toDouble())
+                            if (ScriptManager.scripts.values.any { it.containsKey(com.github.albardoo02.scriptBlockNext.data.BlockLocation(world.name, x, y, z)) }) {
+                                ScriptManager.removeAllScripts(loc)
+                                count++
+                            }
+                        }
+                    }
+                }
+                sender.sendMsg("selector_removed", "count" to count.toString())
+                return true
+            }
             return true
         }
 
@@ -55,25 +132,32 @@ class ScriptCommand: CommandExecutor, TabCompleter {
             sender.sendMsg("error_invalid_type")
             return true
         }
+
+        if (!sender.hasPermission("scriptblocknext.command.$type")) {
+            sender.sendMsg("error_no_permission")
+            return true
+        }
+
         when (action) {
             "view", "info" -> {
                 val targetBlock = sender.getTargetBlockExact(5)
                 if (targetBlock == null) {
-                    sender.sendMessage("§c視点をブロックに合わせて下さい。")
+                    sender.sendMsg("error_look_at_block")
                     return true
                 }
                 val data = ScriptManager.getScript(targetBlock.location, type)
                 if (data == null) {
-                    sender.sendMessage("§cこのブロックに${type}のスクリプトは設定されていません。")
+                    sender.sendMsg("error_no_script_info", "type" to type)
                 } else {
-                    sender.sendMessage("§e=== ScriptBlockNext Info ===")
-                    sender.sendMessage("§7タイプ: §b${data.type}")
-                    sender.sendMessage("§7登録者: §b${data.creator ?: "不明"}")
-                    sender.sendMessage("§7コマンド一覧:")
+                    sender.sendMsg("info_header")
+                    sender.sendMsg("info_type", "type" to data.type)
+                    val creatorName = data.creator?.toString() ?: "Unknown"
+                    sender.sendMsg("info_creator", "creator" to creatorName)
+                    sender.sendMsg("info_commands_header")
                     data.commands.forEachIndexed { i, c ->
-                        sender.sendMessage("§8[§7${i + 1}§8] §f$c")
+                        sender.sendMsg("info_command_line", "index" to (i + 1).toString(), "command" to c)
                     }
-                    sender.sendMessage("§e==========================")
+                    sender.sendMsg("info_footer")
                 }
             }
             "create", "add" -> {
@@ -113,15 +197,32 @@ class ScriptCommand: CommandExecutor, TabCompleter {
         if (sender !is Player) return emptyList()
 
         if (args.size == 1) {
-            return listOf("interact", "break", "walk", "hit", "reload").filter { it.startsWith(args[0], ignoreCase = true) }
+            val firstArgs = mutableListOf<String>()
+            if (sender.hasPermission("scriptblocknext.command.interact")) firstArgs.add("interact")
+            if (sender.hasPermission("scriptblocknext.command.break")) firstArgs.add("break")
+            if (sender.hasPermission("scriptblocknext.command.walk")) firstArgs.add("walk")
+            if (sender.hasPermission("scriptblocknext.command.hit")) firstArgs.add("hit")
+            if (sender.hasPermission("scriptblocknext.command.reload")) firstArgs.add("reload")
+            if (sender.hasPermission("scriptblocknext.command.tool")) firstArgs.add("tool")
+            if (sender.hasPermission("scriptblocknext.command.selector")) firstArgs.add("selector")
+            return firstArgs.filter { it.startsWith(args[0], ignoreCase = true) }
         }
 
         val first = args[0].lowercase()
+
+        if (args.size == 2 && first == "selector") {
+            if (!sender.hasPermission("scriptblocknext.command.selector")) return emptyList()
+            return listOf("remove", "paste").filter { it.startsWith(args[1], ignoreCase = true) }
+        }
+
         if (args.size == 2 && first in listOf("interact", "break", "walk", "hit")) {
-            return listOf("create", "add", "remove").filter { it.startsWith(args[1], ignoreCase = true) }
+            if (!sender.hasPermission("scriptblocknext.command.$first")) return emptyList()
+            return listOf("create", "add", "remove", "view", "info").filter { it.startsWith(args[1], ignoreCase = true) }
         }
 
         if (args.size >= 3 && first in listOf("interact", "break", "walk", "hit")) {
+            if (!sender.hasPermission("scriptblocknext.command.$first")) return emptyList()
+
             val currentArg = args.last()
             val fullInput = args.drop(2).joinToString(" ")
 
@@ -151,20 +252,28 @@ class ScriptCommand: CommandExecutor, TabCompleter {
                 }
             }
 
-            val baseOptions = mutableListOf(
-                "[@action:", "[@blocktype:", "[@group:", "[@perm:", "[@drole:", "[@dchannel:",
-                "[@if ", "[@oldcooldown:", "[@cooldown:", "[@delay:", "[@hand:", $$"[$item:", $$"[$cost:",
-                "[@groupADD:", "[@groupREMOVE:", "[@permADD:", "[@permREMOVE:", "[@droleADD:", "[@droleREMOVE:",
-                "[@say ", "[@server ", "[@player ", "[@sound:", "[@title:", "[@actionbar:",
-                "[@bypass ", "[@bypassPERM:", "[@bypassGROUP:", "[@cmd ", "[@command ", "[@console ",
-                "[@execute:", "[@amount:", "[@invalid]", "[@broadcast ", "[@message ", "[@msg ",
-                "[@velocity:", "[@checkpoint]", "[@return]", "[@nofall:", "[@potion:"
+            var baseOptions = listOf(
+                "[@action:", "[@blocktype:", "[@delay:", "[@cooldown:",
+                "[@oldcooldown:", $$"[$item:", "[@command ", "[@msg ", "[@player ",
+                "[@server ", "[@console ", "[@bypass ", "[@sound:", "[@title:", "[@actionbar:",
+                "[@velocity:", "[@checkpoint]", "[@return]", "[@nofall:", "[@potion:",
+                "[@if ", "[@hand:", "[@bypassPERM:"
             )
 
-            if (MythicMobsManager.isHooked) {
-                baseOptions.addAll(listOf("[\$mythic:", "[@mythic:", "[\$mythicItem:", "[@mythicItem:"))
+            if (VaultManager.isHooked) {
+                baseOptions = baseOptions + listOf($$"[$cost:")
             }
-            val options = baseOptions.toList()
+            if (DiscordSRVManager.isHooked) {
+                baseOptions = baseOptions + listOf("[@drole:", "[@dchannel:", "[@droleADD:", "[@droleREMOVE:")
+            }
+            if (LuckPermsManager.isHooked) {
+                baseOptions = baseOptions + listOf("[@group:", "[@groupADD:", "[@groupREMOVE:", "[@bypassGROUP:")
+            }
+            if (MythicMobsManager.isHooked) {
+                baseOptions = baseOptions + listOf($$"[$mythic:", "[@mythic:", $$"[$mythicItem:", "[@mythicItem:")
+            }
+
+            val options = baseOptions
 
             val lastBracket = currentArg.lastIndexOf('[')
             return if (lastBracket != -1) {

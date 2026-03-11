@@ -107,6 +107,7 @@ object MythicMobsManager {
                 plugin.logger.info("MythicMobs(Legacy v4)を検知しました。NMSを使用してMMIDを取得します。")
             } catch (ex: Exception) { }
         }
+        plugin.logger.info("MythicMobs hooked successfully.")
     }
 
     private fun getMythicId(item: ItemStack?): String? {

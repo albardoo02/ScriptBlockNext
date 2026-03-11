@@ -6,11 +6,12 @@ author: albardoo02
 website: https://github.com/albardoo02/ScriptBlockNext
 api-version: '1.13'
 softdepend:
-  - Vault
-  - PlaceholderAPI
-  - MythicMobs
+  - DiscordSRV
   - LuckPerms
+  - MythicMobs
+  - PlaceholderAPI
   - ScriptBlockPlus
+  - Vault
 
 commands:
   scriptblocknext:
@@ -20,7 +21,7 @@ commands:
       - sbp
       - scriptblockplus
     usage: |
-           /<command> reload - Reload the plugin.
+      /<command> reload - Reload the plugin.
 
 permissions:
   scriptblocknext.*:
@@ -28,6 +29,44 @@ permissions:
     default: op
     children:
       scriptblocknext.command.*: true
+      scriptblocknext.tool.*: true
   scriptblocknext.command.*:
-    description: ScriptBlockNext command permissions.
+    description: All ScriptBlockNext command permissions.
+    default: op
+    children:
+      scriptblocknext.command.reload: true
+      scriptblocknext.command.interact: true
+      scriptblocknext.command.break: true
+      scriptblocknext.command.walk: true
+      scriptblocknext.command.hit: true
+      scriptblocknext.command.tool: true
+      scriptblocknext.command.selector: true
+  scriptblocknext.command.reload:
+    description: Allows reloading the plugin.
+    default: op
+  scriptblocknext.command.interact:
+    description: Allows editing interact scripts.
+    default: op
+  scriptblocknext.command.break:
+    description: Allows editing break scripts.
+    default: op
+  scriptblocknext.command.walk:
+    description: Allows editing walk scripts.
+    default: op
+  scriptblocknext.command.hit:
+    description: Allows editing hit scripts.
+    default: op
+  scriptblocknext.command.tool:
+    description: Allows getting the support tool.
+    default: op
+  scriptblocknext.command.selector:
+    description: Allows using the block selector commands.
+    default: op
+  scriptblocknext.tool.*:
+    description: All tool usage permissions.
+    default: op
+    children:
+      scriptblocknext.tool.blockselector: true
+  scriptblocknext.tool.blockselector:
+    description: Allows using the Block Selector tool (Blaze Rod).
     default: op

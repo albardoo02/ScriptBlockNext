@@ -1,1 +1,40 @@
-# TODO: write this file
+# Error Messages
+error_only_player: "&cThis command can only be executed by players."
+error_no_permission: "&cYou don't have permission to execute this command."
+error_invalid_type: "&cInvalid trigger type. Please specify interact, break, walk, or hit."
+error_unknown_action: "&cUnknown action: {action}"
+error_no_money: "&cNot enough money (Required: {amount})"
+error_no_item: "&cNot enough items (Required: {item} x{amount})"
+error_cooldown: "&cYou are on cooldown (Remaining: {time}s)"
+error_look_at_block: "&cPlease look at a block."
+error_no_script_info: "&cNo {type} script is set on this block."
+error_selection_incomplete: "&cError: Selection is incomplete. Set Pos1 and Pos2 with the tool."
+
+# Command Usage
+cmd_usage_main: "&cUsage: /sbn <type> <action> [args] or /sbn reload"
+cmd_usage_action: "&cUsage: /sbn <interact|break|walk|hit> <create|add|remove|view>"
+cmd_usage_args: "&cUsage: /sbn {type} {action} <command>"
+cmd_usage_selector: "&cUsage: /sbn selector <remove|paste>"
+cmd_reloaded: "&aPlugin configuration reloaded."
+
+# Mode Switching
+mode_creation: "&eCreation mode ({type}) enabled. Right-click the target block to register: &f{commands}"
+mode_add: "&eAdd mode ({type}) enabled. Right-click the target block to add: &f{commands}"
+mode_removal: "&cRemoval mode ({type}) enabled. Right-click the target block to remove."
+
+# Success Messages
+success_registered: "&aScript({type}) registered to this block."
+success_added: "&aScript ({type}) added. (Total: {count} commands)"
+success_removed: "&cScript ({type}) removed from this block."
+selector_removed: "&a[SBN] Removed all scripts from {count} blocks in the selection."
+
+# Tool & Info
+pos1_set: "&d[SBN] Pos1 set: {x}, {y}, {z}"
+pos2_set: "&d[SBN] Pos2 set: {x}, {y}, {z}"
+tool_given: "&a[SBN] Support tool given."
+info_header: "&e=== ScriptBlockNext Info ==="
+info_type: "&7Type: &b{type}"
+info_creator: "&7Creator: &b{creator}"
+info_commands_header: "&7Commands:"
+info_command_line: "&8[&7{index}&8] &f{command}"
+info_footer: "&e=========================="
