@@ -173,13 +173,13 @@ object ScriptExecutor {
             }
 
             when {
-                cmd.startsWith("@player ") || cmd.startsWith("@msg ") -> player.sendMessage(cmd.substringAfter(" "))
-                cmd.startsWith("@server ") -> Bukkit.broadcastMessage(cmd.substringAfter("@server "))
-                cmd.startsWith("@console ") -> Bukkit.dispatchCommand(Bukkit.getConsoleSender(), cmd.substringAfter("@console ").trim().removePrefix("/"))
-                cmd.startsWith("@command ") -> {
+                cmd.startsWith("@player ") || cmd.startsWith("@msg ") || cmd.startsWith("@message ") -> player.sendMessage(cmd.substringAfter(" "))
+                cmd.startsWith("@command ") || cmd.startsWith("@cmd ")-> {
                     val finalCmd = cmd.substringAfter("@command ").trim().removePrefix("/")
                     player.performCommand(finalCmd)
                 }
+                cmd.startsWith("@server ") || cmd.startsWith("@broadcast ") -> Bukkit.broadcastMessage(cmd.substringAfter("@server "))
+                cmd.startsWith("@console ") -> Bukkit.dispatchCommand(Bukkit.getConsoleSender(), cmd.substringAfter("@console ").trim().removePrefix("/"))
                 cmd.startsWith("@bypass ") -> {
                     val isOp = player.isOp
                     try {

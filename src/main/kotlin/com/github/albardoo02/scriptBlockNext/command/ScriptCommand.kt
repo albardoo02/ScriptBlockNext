@@ -5,11 +5,25 @@ import com.github.albardoo02.scriptBlockNext.manager.sendMsg
 import org.bukkit.Bukkit
 import org.bukkit.command.Command
 import org.bukkit.command.CommandExecutor
+import org.bukkit.command.CommandMap
 import org.bukkit.command.CommandSender
 import org.bukkit.command.TabCompleter
 import org.bukkit.entity.Player
+import org.bukkit.plugin.SimplePluginManager
+import java.lang.reflect.Field
 
 class ScriptCommand: CommandExecutor, TabCompleter {
+
+    private val commandMap: CommandMap? by lazy {
+        try {
+            val field: Field = SimplePluginManager::class.java.getDeclaredField("commandMap")
+            field.isAccessible = true
+            field.get(Bukkit.getPluginManager()) as CommandMap
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
 
     override fun onCommand(sender: CommandSender, command: Command, label: String, args: Array<out String>): Boolean {
         if (sender !is Player) {
@@ -75,56 +89,64 @@ class ScriptCommand: CommandExecutor, TabCompleter {
     }
 
     override fun onTabComplete(sender: CommandSender, command: Command, alias: String, args: Array<out String>): List<String>? {
+        if (sender !is Player) return emptyList()
+
         if (args.size == 1) {
-            return listOf("interact", "break", "walk", "hit", "view", "info", "reload").filter { it.startsWith(args[0], ignoreCase = true) }
+            return listOf("interact", "break", "walk", "hit", "reload").filter { it.startsWith(args[0], ignoreCase = true) }
         }
+
         val first = args[0].lowercase()
-        if (args.size == 2) {
-            if (first in listOf("interact", "break", "walk", "hit")) {
-                return listOf("create", "add", "remove").filter { it.startsWith(args[1], ignoreCase = true) }
-            }
+        if (args.size == 2 && first in listOf("interact", "break", "walk", "hit")) {
+            return listOf("create", "add", "remove").filter { it.startsWith(args[1], ignoreCase = true) }
         }
 
         if (args.size >= 3 && first in listOf("interact", "break", "walk", "hit")) {
             val currentArg = args.last()
-            val fullString = args.drop(2).joinToString(" ")
+            val fullInput = args.drop(2).joinToString(" ")
 
             val commandTags = listOf("[@command ", "[@console ", "[@bypass ", "[@bypassPERM:", "[@bypassGROUP:")
             val activeTag = commandTags.find { tag ->
-                val lastIndex = fullString.lastIndexOf(tag)
-                lastIndex != -1 && !fullString.substring(lastIndex).contains("]")
+                val lastIdx = fullInput.lastIndexOf(tag)
+                lastIdx != -1 && !fullInput.substring(lastIdx).contains("]")
             }
 
             if (activeTag != null) {
-                // タグの直後の文字列を取得
-                val cmdPart = fullString.substring(fullString.lastIndexOf(activeTag) + activeTag.length)
-                val completions = Bukkit.getHelpMap().helpTopics
-                    .map { it.name.removePrefix("/").lowercase() }
-                    .filter { it.isNotBlank()}
-                    .filter { it.startsWith(currentArg.lowercase()) }
-
-                return completions
+                val cmdContent = fullInput.substring(fullInput.lastIndexOf(activeTag) + activeTag.length)
+                val cmdArgs = cmdContent.split(" ").toMutableList()
+                if (cmdArgs.size <= 1) {
+                    val search = if (cmdArgs.isEmpty()) "" else cmdArgs[0]
+                    return commandMap?.knownCommands?.keys?.filter { it.startsWith(search, ignoreCase = true) && !it.contains(":") }
+                } else {
+                    val label = cmdArgs[0].removePrefix("/")
+                    val targetCmd = commandMap?.getCommand(label)
+                    if (targetCmd != null) {
+                        val subArgs = cmdArgs.drop(1).toTypedArray()
+                        return try {
+                            targetCmd.tabComplete(sender, label, subArgs)
+                        } catch (e: Exception) {
+                            null
+                        }
+                    }
+                }
             }
 
             val options = listOf(
                 "[@action:", "[@blocktype:", "[@group:", "[@perm:", "[@drole:", "[@dchannel:",
-                "[@if ", "[@oldcooldown:", "[@cooldown:", "[@delay:", "[@hand:", "[\$item:", "[\$cost:",
+                "[@if ", "[@oldcooldown:", "[@cooldown:", "[@delay:", "[@hand:", $$"[$item:", $$"[$cost:",
                 "[@groupADD:", "[@groupREMOVE:", "[@permADD:", "[@permREMOVE:", "[@droleADD:", "[@droleREMOVE:",
                 "[@say ", "[@server ", "[@player ", "[@sound:", "[@title:", "[@actionbar:",
-                "[@bypass ", "[@bypassPERM:", "[@bypassGROUP:", "[@command ", "[@console ",
-                "[@execute:", "[@amount:", "[@invalid]",
+                "[@bypass ", "[@bypassPERM:", "[@bypassGROUP:", "[@cmd", "[@command ", "[@console ",
+                "[@execute:", "[@amount:", "[@invalid]", "[@broadcast", "[@message",
                 "[@velocity:", "[@checkpoint]", "[@return]", "[@nofall:", "[@potion:"
             )
 
-            if (currentArg.isEmpty()) return options
-
-            val lastBracketIndex = currentArg.lastIndexOf('[')
-            if (lastBracketIndex != -1) {
-                val prefix = currentArg.substring(0, lastBracketIndex)
-                val checkArg = currentArg.substring(lastBracketIndex)
-                return options.filter { it.startsWith(checkArg, ignoreCase = true) }.map { prefix + it }
+            val lastBracket = currentArg.lastIndexOf('[')
+            return if (lastBracket != null && lastBracket != -1) {
+                val prefix = currentArg.substring(0, lastBracket)
+                val filter = currentArg.substring(lastBracket)
+                options.filter { it.startsWith(filter, ignoreCase = true) }.map { prefix + it }
             } else {
-                return options.filter { it.startsWith("[$currentArg", ignoreCase = true) }
+                options.filter { it.startsWith("[$currentArg", ignoreCase = true) }
             }
         }
         return emptyList()
