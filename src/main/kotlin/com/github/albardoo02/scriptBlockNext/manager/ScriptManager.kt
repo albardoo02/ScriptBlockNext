@@ -7,7 +7,6 @@ import com.github.albardoo02.scriptBlockNext.data.ScriptEntry
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.google.gson.JsonObject
-import com.google.gson.reflect.TypeToken
 
 import org.bukkit.Location
 import org.bukkit.configuration.file.YamlConfiguration
@@ -26,6 +25,8 @@ object ScriptManager {
     val creationMode = mutableMapOf<UUID, Pair<String, List<String>>>()
     val addMode = mutableMapOf<UUID, Pair<String, List<String>>>()
     val removalMode = mutableMapOf<UUID, String>()
+    val checkpoints = mutableMapOf<UUID, Location>()
+    val noFallPlayers = mutableMapOf<UUID, Long>()
 
     fun init(plugin: ScriptBlockNext) {
         this.plugin = plugin

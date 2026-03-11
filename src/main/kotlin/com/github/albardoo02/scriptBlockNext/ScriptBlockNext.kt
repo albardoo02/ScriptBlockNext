@@ -4,6 +4,7 @@ import com.github.albardoo02.scriptBlockNext.command.ScriptCommand
 import com.github.albardoo02.scriptBlockNext.listener.InteractListener
 import com.github.albardoo02.scriptBlockNext.listener.ScriptListener
 import com.github.albardoo02.scriptBlockNext.manager.MessageManager
+import com.github.albardoo02.scriptBlockNext.manager.PlaceholderManager
 import com.github.albardoo02.scriptBlockNext.manager.ScriptManager
 import net.milkbowl.vault.economy.Economy
 import org.bukkit.plugin.java.JavaPlugin
@@ -21,6 +22,7 @@ class ScriptBlockNext : JavaPlugin() {
     override fun onEnable() {
         instance = this
         MessageManager.init(this)
+        PlaceholderManager.init(this)
 
         disableAndRenameOldPlugin()
 

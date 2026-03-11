@@ -4,6 +4,7 @@ error_invalid_type: "&c無効なトリガーです。interact, break, walk, hit 
 error_unknown_action: "&c不明なアクションです: {action}"
 error_no_money: "&cお金が足りません！ (必要: {amount})"
 error_no_item: "&cアイテムが足りません！ (必要: {item} x{amount})"
+error_cooldown: "&cクールダウン中です！ (残り: {time}秒)"
 
 # コマンドの使い方
 cmd_usage_main: "&c使用方法: /sbn <type> <action> [args] または /sbn reload"

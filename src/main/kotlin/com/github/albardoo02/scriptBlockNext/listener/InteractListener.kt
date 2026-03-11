@@ -1,6 +1,7 @@
 package com.github.albardoo02.scriptBlockNext.listener
 
 import com.github.albardoo02.scriptBlockNext.data.ScriptData
+import com.github.albardoo02.scriptBlockNext.executor.ScriptExecutor
 import com.github.albardoo02.scriptBlockNext.manager.ScriptManager
 import com.github.albardoo02.scriptBlockNext.manager.sendMsg
 import org.bukkit.Bukkit
@@ -8,12 +9,13 @@ import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
 import org.bukkit.event.block.Action
 import org.bukkit.event.player.PlayerInteractEvent
+import org.bukkit.inventory.EquipmentSlot
 
 class InteractListener: Listener {
 
     @EventHandler
     fun onInteract(event: PlayerInteractEvent) {
-        if (event.hand != org.bukkit.inventory.EquipmentSlot.HAND) return
+        if (event. hand == EquipmentSlot.OFF_HAND) return
         val player = event.player
         val clickedBlock = event.clickedBlock ?: return
         val location = clickedBlock.location
@@ -52,7 +54,10 @@ class InteractListener: Listener {
         }
         if (event.action != Action.RIGHT_CLICK_BLOCK && event.action != Action.LEFT_CLICK_BLOCK) return
         val scriptData = ScriptManager.getScript(location, "interact") ?: return
+
+        if (player.isSneaking && (player.isOp || player.hasPermission("scriptblocknext.admin"))) return
+
         event.isCancelled = true
-        ScriptExecutor.run(player, scriptData)
+        ScriptExecutor.run(player, scriptData, location)
     }
 }

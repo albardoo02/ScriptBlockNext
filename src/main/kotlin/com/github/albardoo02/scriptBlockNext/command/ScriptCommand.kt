@@ -2,6 +2,7 @@ package com.github.albardoo02.scriptBlockNext.command
 
 import com.github.albardoo02.scriptBlockNext.manager.ScriptManager
 import com.github.albardoo02.scriptBlockNext.manager.sendMsg
+import org.bukkit.Bukkit
 import org.bukkit.command.Command
 import org.bukkit.command.CommandExecutor
 import org.bukkit.command.CommandSender
@@ -68,18 +69,60 @@ class ScriptCommand: CommandExecutor, TabCompleter {
                 ScriptManager.addMode.remove(sender.uniqueId)
                 sender.sendMsg("mode_removal", "type" to type)
             }
-            else -> sender.sendMsg("error_unknown_action", "action" to action)        }
+            else -> sender.sendMsg("error_unknown_action", "action" to action)
+        }
         return true
     }
 
     override fun onTabComplete(sender: CommandSender, command: Command, alias: String, args: Array<out String>): List<String>? {
         if (args.size == 1) {
-            return listOf("interact", "break", "walk", "hit", "reload").filter { it.startsWith(args[0], ignoreCase = true) }
+            return listOf("interact", "break", "walk", "hit", "view", "info", "reload").filter { it.startsWith(args[0], ignoreCase = true) }
         }
+        val first = args[0].lowercase()
         if (args.size == 2) {
-            val first = args[0].lowercase()
             if (first in listOf("interact", "break", "walk", "hit")) {
                 return listOf("create", "add", "remove").filter { it.startsWith(args[1], ignoreCase = true) }
+            }
+        }
+        if (args.size >= 3 && first in listOf("interact", "break", "walk", "hit")) {
+            val action = args[1].lowercase()
+            if (action in listOf("create", "add")) {
+                val currentArg = args.last()
+                val prevArg = if (args.size >= 4) args[args.size - 2] else ""
+
+                val isCommandContext = prevArg.endsWith("[@command") ||
+                        prevArg.endsWith("[@console") ||
+                        prevArg.contains("[@bypass")
+                if (isCommandContext) {
+                    val serverCommands = Bukkit.getHelpMap().helpTopics.map { it.name.removePrefix("/") }
+                        .filter { it.isNotBlank() && !it.contains(":") }
+                    return serverCommands.filter { it.startsWith(currentArg, ignoreCase = true) }
+                }
+
+                val options = listOf(
+                    "[@action:", "[@blocktype:", "[@group:", "[@perm:", "[@drole:", "[@dchannel:",
+                    "[@if ", "[@oldcooldown:", "[@cooldown:", "[@delay:", "[@hand:", "[\$item:", "[\$cost:",
+                    "[@groupADD:", "[@groupREMOVE:", "[@permADD:", "[@permREMOVE:", "[@droleADD:", "[@droleREMOVE:",
+                    "[@say ", "[@server ", "[@player ", "[@sound:", "[@title:", "[@actionbar:",
+                    "[@bypass ", "[@bypassPERM:", "[@bypassGROUP:", "[@command ", "[@console ",
+                    "[@execute:", "[@amount:", "[@invalid]",
+                    "[@velocity:", "[@checkpoint]", "[@return]", "[@nofall:", "[@potion:"
+                )
+
+                if (currentArg.isEmpty()) return options
+                val lastBracketIndex = currentArg.lastIndexOf('[')
+                if (lastBracketIndex != -1) {
+                    val prefix = currentArg.substring(0, lastBracketIndex)
+                    val checkArg = currentArg.substring(lastBracketIndex)
+
+                    val matches = options.filter { it.startsWith(checkArg, ignoreCase = true) }
+                    if (matches.isNotEmpty()) {
+                        return matches.map { prefix + it }
+                    }
+                } else {
+                    val matches = options.filter { it.startsWith("[$currentArg", ignoreCase = true) }
+                    if (matches.isNotEmpty()) return matches
+                }
             }
         }
         return emptyList()

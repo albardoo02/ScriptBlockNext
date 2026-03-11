@@ -21,11 +21,15 @@ repositories {
         name = "sonatype-repo"
         url = uri("https://jitpack.io")
     }
+    maven {
+        url = uri("https://repo.extendedclip.com/releases/")
+    }
 }
 
 dependencies {
     compileOnly("com.destroystokyo.paper:paper-api:1.13.2-R0.1-SNAPSHOT")
     compileOnly("com.github.MilkBowl:VaultAPI:1.7")
+    compileOnly("me.clip:placeholderapi:2.12.2")
     implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
 }
 
