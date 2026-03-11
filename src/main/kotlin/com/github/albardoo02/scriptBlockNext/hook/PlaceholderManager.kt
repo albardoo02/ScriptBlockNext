@@ -1,10 +1,11 @@
-package com.github.albardoo02.scriptBlockNext.manager
+package com.github.albardoo02.scriptBlockNext.hook
 
 import com.github.albardoo02.scriptBlockNext.ScriptBlockNext
 import me.clip.placeholderapi.PlaceholderAPI
 import org.bukkit.Bukkit
 import org.bukkit.ChatColor
 import org.bukkit.entity.Player
+import kotlin.collections.iterator
 
 object PlaceholderManager {
 

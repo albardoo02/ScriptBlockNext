@@ -2,7 +2,8 @@ package com.github.albardoo02.scriptBlockNext.executor
 
 import com.github.albardoo02.scriptBlockNext.ScriptBlockNext
 import com.github.albardoo02.scriptBlockNext.data.ScriptData
-import com.github.albardoo02.scriptBlockNext.manager.PlaceholderManager
+import com.github.albardoo02.scriptBlockNext.hook.MythicMobsManager
+import com.github.albardoo02.scriptBlockNext.hook.PlaceholderManager
 import com.github.albardoo02.scriptBlockNext.manager.ScriptManager
 import com.github.albardoo02.scriptBlockNext.manager.sendMsg
 import net.md_5.bungee.api.ChatMessageType
@@ -23,16 +24,18 @@ object ScriptExecutor {
     private val playerCooldowns = mutableMapOf<UUID, MutableMap<Location, Long>>()
     private val globalCooldowns = mutableMapOf<Location, Long>()
 
-    fun run(player: Player, scriptData: ScriptData, location: Location) {
+    fun run(player: Player, scriptData: ScriptData, location: Location, actionType: String = "") {
         var requiredMoney = 0.0
         val requiredItems = mutableListOf<ItemStack>()
+        val requiredMythicItems = mutableMapOf<String, Int>()
         var cooldownTime = 0
         var oldCooldownTime = 0
 
         for (line in scriptData.commands) {
             val cmd = PlaceholderManager.replace(player, line)
-            if (cmd.startsWith("@cooldown:")) cooldownTime = cmd.substringAfter("@cooldown:").toIntOrNull() ?: 0
-            if (cmd.startsWith("@oldcooldown:")) oldCooldownTime = cmd.substringAfter("@oldcooldown:").toIntOrNull() ?: 0
+            val cleanCmd = cmd.removePrefix("!")
+            if (cleanCmd.startsWith("@cooldown:")) cooldownTime = cleanCmd.substringAfter("@cooldown:").toIntOrNull() ?: 0
+            if (cleanCmd.startsWith("@oldcooldown:")) oldCooldownTime = cleanCmd.substringAfter("@oldcooldown:").toIntOrNull() ?: 0
         }
 
         val now = System.currentTimeMillis()
@@ -45,7 +48,6 @@ object ScriptExecutor {
                 return
             }
         }
-
         if (oldCooldownTime > 0) {
             val lastTime = globalCooldowns[location] ?: 0L
             val remaining = (oldCooldownTime * 1000L - (now - lastTime)) / 1000L
@@ -60,25 +62,68 @@ object ScriptExecutor {
 
         for (line in scriptData.commands) {
             val cmd = PlaceholderManager.replace(player, line)
-            if (cmd.startsWith("\$cost:")) {
-                requiredMoney += cmd.substringAfter("\$cost:").toDoubleOrNull() ?: 0.0
-            } else if (cmd.startsWith("\$item:")) {
-                val parts = cmd.substringAfter("\$item:").split(":")
+            val isInverted = cmd.startsWith("!")
+            val cleanCmd = if (isInverted) cmd.substring(1) else cmd
+
+            if (cleanCmd.startsWith("\$cost:")) {
+                val cost = cleanCmd.substringAfter("\$cost:").toDoubleOrNull() ?: 0.0
+                val eco = ScriptBlockNext.instance.economy
+                if (isInverted) {
+                    if (eco != null && eco.has(player, cost)) return
+                } else {
+                    requiredMoney += cost
+                }
+            } else if (cleanCmd.startsWith("\$item:")) {
+                val parts = cleanCmd.substringAfter("\$item:").split(":")
                 if (parts.size >= 2) {
                     val mat = Material.matchMaterial(parts[0].uppercase()) ?: continue
                     val amount = parts[1].toIntOrNull() ?: 1
-                    requiredItems.add(ItemStack(mat, amount))
+                    val item = ItemStack(mat, amount)
+                    if (isInverted) {
+                        if (player.inventory.containsAtLeast(item, amount)) return
+                    } else {
+                        requiredItems.add(item)
+                    }
                 }
-            } else if (cmd.startsWith("@if ")) {
-                val ifArgs = cmd.substringAfter("@if ").split(" ", limit = 4)
+            } else if (cleanCmd.startsWith("@action:")) {
+                val requiredAction = cleanCmd.substringAfter("@action:").lowercase()
+                val isMatch = actionType.contains(requiredAction)
+                if (if (isInverted) isMatch else !isMatch) return
+            } else if (cleanCmd.startsWith("@hand:")) {
+                val parts = cleanCmd.substringAfter("@hand:").split(":")
+                val mat = Material.matchMaterial(parts[0].uppercase())
+                val isMatch = player.inventory.itemInMainHand.type == mat
+                if (if (isInverted) isMatch else !isMatch) return
+            } else if (cleanCmd.startsWith($$"$mythic:")) {
+                val parts = cleanCmd.substringAfter($$"$mythic:").split(":")
+                if (parts.size >= 2) {
+                    val mythicId = parts[0]
+                    val amount = parts[1].toIntOrNull() ?: 1
+                    if (isInverted) {
+                        if (MythicMobsManager.countMythicItem(player, mythicId) >= amount) return
+                    } else {
+                        requiredMythicItems[mythicId] = (requiredMythicItems[mythicId] ?: 0) + amount
+                    }
+                }
+            } else if (cleanCmd.startsWith("@mythic:")) {
+                val parts = cleanCmd.substringAfter("@mythic:").split(":")
+                if (parts.size >= 2) {
+                    val mythicId = parts[0]
+                    val amount = parts[1].toIntOrNull() ?: 1
+                    val hasEnough = MythicMobsManager.countMythicItem(player, mythicId) >= amount
+                    if (if (isInverted) hasEnough else !hasEnough) return
+                }
+            } else if (cleanCmd.startsWith("@if ")) {
+                val ifArgs = cleanCmd.substringAfter("@if ").split(" ", limit = 4)
                 if (ifArgs.size >= 3) {
                     val val1 = ifArgs[0]
                     val operator = ifArgs[1]
                     val val2 = ifArgs[2]
                     val failMsg = if (ifArgs.size == 4) ifArgs[3] else null
+
                     val num1 = val1.toDoubleOrNull()
                     val num2 = val2.toDoubleOrNull()
-                    val passed = if (num1 != null && num2 != null) {
+                    var passed = if (num1 != null && num2 != null) {
                         when (operator) {
                             "==" -> num1 == num2; "!=" -> num1 != num2; ">" -> num1 > num2
                             ">=" -> num1 >= num2; "<" -> num1 < num2; "<=" -> num1 <= num2; else -> false
@@ -86,6 +131,8 @@ object ScriptExecutor {
                     } else {
                         when (operator) { "==" -> val1 == val2; "!=" -> val1 != val2; else -> false }
                     }
+
+                    if (isInverted) passed = !passed
                     if (!passed) {
                         if (failMsg != null) player.sendMessage(failMsg)
                         return
@@ -100,6 +147,7 @@ object ScriptExecutor {
                 player.sendMsg("error_no_money", "amount" to requiredMoney.toString())
                 return
             }
+            eco.withdrawPlayer(player, requiredMoney)
         }
 
         for (item in requiredItems) {
@@ -107,10 +155,18 @@ object ScriptExecutor {
                 player.sendMsg("error_no_item", "item" to item.type.name, "amount" to item.amount.toString())
                 return
             }
+            player.inventory.removeItem(item)
+        }
+        for ((mythicId, amount) in requiredMythicItems) {
+            if (MythicMobsManager.countMythicItem(player, mythicId) < amount) {
+                player.sendMsg("error_no_item", "item" to mythicId, "amount" to amount.toString())
+                return
+            }
+        }
+        for ((mythicId, amount) in requiredMythicItems) {
+            MythicMobsManager.takeMythicItem(player, mythicId, amount)
         }
 
-        if (requiredMoney > 0.0 && eco != null) eco.withdrawPlayer(player, requiredMoney)
-        for (item in requiredItems) player.inventory.removeItem(item)
         executeCommands(player, scriptData.commands, 0)
     }
 
@@ -118,88 +174,98 @@ object ScriptExecutor {
         if (!player.isOnline) return
 
         for (i in startIndex until commands.size) {
-            val cmd = PlaceholderManager.replace(player, commands[i])
+            val rawLine = commands[i]
+            val cmd = PlaceholderManager.replace(player, rawLine)
 
-            if (cmd.startsWith($$"$cost:") || cmd.startsWith($$"$item:") ||
-                cmd.startsWith("@if ") || cmd.startsWith("@cooldown:") || cmd.startsWith("@oldcooldown:")) continue
-            if (cmd.startsWith("@delay:")) {
-                val ticks = cmd.substringAfter("@delay:").toLongOrNull() ?: 20L
-                Bukkit.getScheduler().runTaskLater(ScriptBlockNext.instance, Runnable {
-                    executeCommands(player, commands, i + 1)
-                }, ticks)
-                return
-            }
-            if (cmd.startsWith("@velocity:")) {
-                val args = cmd.substringAfter("@velocity:").split(",")
-                if (args.size == 3) {
-                    val x = args[0].toDoubleOrNull() ?: 0.0
-                    val y = args[1].toDoubleOrNull() ?: 0.0
-                    val z = args[2].toDoubleOrNull() ?: 0.0
-                    player.velocity = Vector(x, y, z)
+            val isInverted = cmd.startsWith("!")
+            val activeCmd = if (isInverted) cmd.substring(1) else cmd
+
+            if (activeCmd.startsWith($$"$cost:") || activeCmd.startsWith($$"$item:") ||
+                activeCmd.startsWith("@if ") || activeCmd.startsWith("@cooldown:") ||
+                activeCmd.startsWith("@oldcooldown:") || activeCmd.startsWith("@action:") ||
+                activeCmd.startsWith("@hand:")) continue
+            if (activeCmd.startsWith("@delay:")) {
+                val rawData = activeCmd.substringAfter("@delay:")
+                val braceIdx = rawData.indexOf('{')
+                val ticksStr = if (braceIdx != -1) rawData.take(braceIdx) else rawData
+                val ticks = ticksStr.toLongOrNull() ?: 20L
+
+                var wait = true
+                if (braceIdx != -1 && rawData.endsWith("}")) {
+                    val params = rawData.substring(braceIdx + 1, rawData.length - 1)
+                    if (params.contains("wait=false")) wait = false
                 }
-                continue
-            }
-            if (cmd.startsWith("@checkpoint")) {
-                ScriptManager.checkpoints[player.uniqueId] = player.location
-                continue
-            }
-            if (cmd.startsWith("@return")) {
-                val cp = ScriptManager.checkpoints[player.uniqueId]
-                if (cp != null) {
-                    player.teleport(cp)
+
+                if (!wait) {
                 } else {
-                    player.sendMessage("§cチェックポイントが設定されていません。")
+                    Bukkit.getScheduler().runTaskLater(ScriptBlockNext.instance, Runnable {
+                        executeCommands(player, commands, i + 1)
+                    }, ticks)
+                    return
                 }
                 continue
             }
-            if (cmd.startsWith("@nofall:")) {
-                val seconds = cmd.substringAfter("@nofall:").toIntOrNull() ?: 0
-                if (seconds > 0) {
-                    ScriptManager.noFallPlayers[player.uniqueId] = System.currentTimeMillis() + (seconds * 1000L)
+            if (activeCmd.startsWith("@sound:")) {
+                val rawData = activeCmd.substringAfter("@sound:")
+                val braceIdx = rawData.indexOf('{')
+                val soundStr = if (braceIdx != -1) rawData.substring(0, braceIdx) else rawData
+
+                var broadcast = false
+                if (braceIdx != -1 && rawData.endsWith("}")) {
+                    val params = rawData.substring(braceIdx + 1, rawData.length - 1)
+                    if (params.contains("broadcast=true")) broadcast = true
                 }
-                continue
-            }
-            if (cmd.startsWith("@potion:")) {
-                val args = cmd.substringAfter("@potion:").split(":")
-                if (args.size >= 3) {
-                    val type = PotionEffectType.getByName(args[0].uppercase())
-                    val duration = (args[1].toIntOrNull() ?: 1) * 20
-                    val amplifier = args[2].toIntOrNull() ?: 0
-                    if (type != null) {
-                        player.addPotionEffect(PotionEffect(type, duration, amplifier))
+
+                val soundParts = soundStr.split("-")
+                val sound = runCatching { Sound.valueOf(soundParts.getOrNull(0)?.uppercase() ?: "") }.getOrNull()
+                if (sound != null) {
+                    val volume = soundParts.getOrNull(1)?.toFloatOrNull() ?: 1.0f
+                    val pitch = soundParts.getOrNull(2)?.toFloatOrNull() ?: 1.0f
+                    if (broadcast) {
+                        player.world.playSound(player.location, sound, volume, pitch)
+                    } else {
+                        player.playSound(player.location, sound, volume, pitch)
                     }
                 }
                 continue
             }
 
             when {
-                cmd.startsWith("@player ") || cmd.startsWith("@msg ") || cmd.startsWith("@message ") -> player.sendMessage(cmd.substringAfter(" "))
-                cmd.startsWith("@command ") || cmd.startsWith("@cmd ")-> {
-                    val finalCmd = cmd.substringAfter("@command ").trim().removePrefix("/")
-                    player.performCommand(finalCmd)
-                }
-                cmd.startsWith("@server ") || cmd.startsWith("@broadcast ") -> Bukkit.broadcastMessage(cmd.substringAfter("@server "))
-                cmd.startsWith("@console ") -> Bukkit.dispatchCommand(Bukkit.getConsoleSender(), cmd.substringAfter("@console ").trim().removePrefix("/"))
-                cmd.startsWith("@bypass ") -> {
+                rawLine.startsWith("@player ") || rawLine.startsWith("@msg ") -> player.sendMessage(activeCmd.substringAfter(" "))
+                activeCmd.startsWith("@server ") -> Bukkit.broadcastMessage(activeCmd.substringAfter("@server "))
+                activeCmd.startsWith("@command ") -> player.performCommand(activeCmd.substringAfter("@command ").trim().removePrefix("/"))
+                activeCmd.startsWith("@console ") -> Bukkit.dispatchCommand(Bukkit.getConsoleSender(), activeCmd.substringAfter("@console ").trim().removePrefix("/"))
+                activeCmd.startsWith("@bypass ") -> {
                     val isOp = player.isOp
                     try {
                         player.isOp = true
-                        player.performCommand(cmd.substringAfter("@bypass ").trim().removePrefix("/"))
+                        player.performCommand(activeCmd.substringAfter("@bypass ").trim().removePrefix("/"))
                     } finally {
                         player.isOp = isOp
                     }
                 }
-                cmd.startsWith("@actionbar:") -> player.spigot().sendMessage(ChatMessageType.ACTION_BAR, TextComponent(cmd.substringAfter("@actionbar:")))
-                cmd.startsWith("@title:") -> {
-                    val titleData = cmd.substringAfter("@title:").split("/")
+                activeCmd.startsWith("@velocity:") -> {
+                    val args = activeCmd.substringAfter("@velocity:").split(",")
+                    if (args.size == 3) player.velocity = Vector(args[0].toDoubleOrNull() ?: 0.0, args[1].toDoubleOrNull() ?: 0.0, args[2].toDoubleOrNull() ?: 0.0)
+                }
+                activeCmd.startsWith("@checkpoint") -> ScriptManager.checkpoints[player.uniqueId] = player.location
+                activeCmd.startsWith("@return") -> player.teleport(ScriptManager.checkpoints[player.uniqueId] ?: player.location)
+                activeCmd.startsWith("@nofall:") -> ScriptManager.noFallPlayers[player.uniqueId] = System.currentTimeMillis() + ((activeCmd.substringAfter("@nofall:").toIntOrNull() ?: 0) * 1000L)
+                activeCmd.startsWith("@potion:") -> {
+                    val args = activeCmd.substringAfter("@potion:").split(":")
+                    if (args.size >= 3) {
+                        val type = PotionEffectType.getByName(args[0].uppercase())
+                        if (type != null) player.addPotionEffect(PotionEffect(type, (args[1].toIntOrNull() ?: 1) * 20, args[2].toIntOrNull() ?: 0))
+                    }
+                }
+                activeCmd.startsWith("@actionbar:") -> player.spigot().sendMessage(ChatMessageType.ACTION_BAR, TextComponent(activeCmd.substringAfter("@actionbar:")))
+                activeCmd.startsWith("@title:") -> {
+                    val titleData = activeCmd.substringAfter("@title:").split("/")
                     player.sendTitle(titleData.getOrNull(0) ?: "", titleData.getOrNull(1) ?: "", 10, 70, 20)
                 }
-                cmd.startsWith("@sound:") -> {
-                    val soundData = cmd.substringAfter("@sound:").split("-")
-                    val sound = runCatching { Sound.valueOf(soundData.getOrNull(0)?.uppercase() ?: "") }.getOrNull()
-                    if (sound != null) player.playSound(player.location, sound, soundData.getOrNull(1)?.toFloatOrNull() ?: 1.0f, soundData.getOrNull(2)?.toFloatOrNull() ?: 1.0f)
+                else -> {
+                    if (!activeCmd.startsWith("@") && !activeCmd.startsWith("$")) player.performCommand(activeCmd.trim().removePrefix("/"))
                 }
-                else -> player.performCommand(cmd.trim().removePrefix("/"))
             }
         }
     }

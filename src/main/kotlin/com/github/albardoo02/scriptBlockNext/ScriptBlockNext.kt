@@ -1,10 +1,11 @@
 package com.github.albardoo02.scriptBlockNext
 
 import com.github.albardoo02.scriptBlockNext.command.ScriptCommand
+import com.github.albardoo02.scriptBlockNext.hook.MythicMobsManager
 import com.github.albardoo02.scriptBlockNext.listener.InteractListener
 import com.github.albardoo02.scriptBlockNext.listener.ScriptListener
 import com.github.albardoo02.scriptBlockNext.manager.MessageManager
-import com.github.albardoo02.scriptBlockNext.manager.PlaceholderManager
+import com.github.albardoo02.scriptBlockNext.hook.PlaceholderManager
 import com.github.albardoo02.scriptBlockNext.manager.ScriptManager
 import net.milkbowl.vault.economy.Economy
 import org.bukkit.plugin.java.JavaPlugin
@@ -23,6 +24,7 @@ class ScriptBlockNext : JavaPlugin() {
         instance = this
         MessageManager.init(this)
         PlaceholderManager.init(this)
+        MythicMobsManager.init(this)
 
         disableAndRenameOldPlugin()
 

@@ -26,6 +26,12 @@ class ScriptCommand: CommandExecutor, TabCompleter {
     }
 
     override fun onCommand(sender: CommandSender, command: Command, label: String, args: Array<out String>): Boolean {
+        if (args[0].lowercase() == "reload") {
+            ScriptManager.loadScripts()
+            sender.sendMsg("cmd_reloaded")
+            return true
+        }
+
         if (sender !is Player) {
             sender.sendMsg("error_only_player")
             return true
@@ -33,12 +39,6 @@ class ScriptCommand: CommandExecutor, TabCompleter {
 
         if (args.isEmpty()) {
             sender.sendMsg("cmd_usage_main")
-            return true
-        }
-
-        if (args[0].lowercase() == "reload") {
-            ScriptManager.loadScripts()
-            sender.sendMsg("cmd_reloaded")
             return true
         }
 
@@ -137,7 +137,7 @@ class ScriptCommand: CommandExecutor, TabCompleter {
                 "[@say ", "[@server ", "[@player ", "[@sound:", "[@title:", "[@actionbar:",
                 "[@bypass ", "[@bypassPERM:", "[@bypassGROUP:", "[@cmd", "[@command ", "[@console ",
                 "[@execute:", "[@amount:", "[@invalid]", "[@broadcast", "[@message",
-                "[@velocity:", "[@checkpoint]", "[@return]", "[@nofall:", "[@potion:"
+                "[@velocity:", "[@checkpoint]", "[@return]", "[@nofall:", "[@potion:", "[@mythic:"
             )
 
             val lastBracket = currentArg.lastIndexOf('[')
