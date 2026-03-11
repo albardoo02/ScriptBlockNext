@@ -22,7 +22,9 @@ object PlaceholderManager {
     fun replace(player: Player, text: String): String {
         var result = text
         result = result.replace("<player>", player.name)
+            .replace("@player", player.name)
             .replace("<world>", player.world.name)
+            .replace("@world", player.world.name)
         val escapes = mapOf(
             "\\b" to " ", "\\c" to ",", "\\h" to "-", "\\o" to ":",
             "\\p" to "%", "\\s" to "/", "\\l" to "<", "\\g" to ">",

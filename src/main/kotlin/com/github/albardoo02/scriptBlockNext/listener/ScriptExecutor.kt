@@ -120,7 +120,7 @@ object ScriptExecutor {
         for (i in startIndex until commands.size) {
             val cmd = PlaceholderManager.replace(player, commands[i])
 
-            if (cmd.startsWith("\$cost:") || cmd.startsWith("\$item:") ||
+            if (cmd.startsWith($$"$cost:") || cmd.startsWith($$"$item:") ||
                 cmd.startsWith("@if ") || cmd.startsWith("@cooldown:") || cmd.startsWith("@oldcooldown:")) continue
             if (cmd.startsWith("@delay:")) {
                 val ticks = cmd.substringAfter("@delay:").toLongOrNull() ?: 20L
@@ -176,6 +176,10 @@ object ScriptExecutor {
                 cmd.startsWith("@player ") || cmd.startsWith("@msg ") -> player.sendMessage(cmd.substringAfter(" "))
                 cmd.startsWith("@server ") -> Bukkit.broadcastMessage(cmd.substringAfter("@server "))
                 cmd.startsWith("@console ") -> Bukkit.dispatchCommand(Bukkit.getConsoleSender(), cmd.substringAfter("@console ").trim().removePrefix("/"))
+                cmd.startsWith("@command ") -> {
+                    val finalCmd = cmd.substringAfter("@command ").trim().removePrefix("/")
+                    player.performCommand(finalCmd)
+                }
                 cmd.startsWith("@bypass ") -> {
                     val isOp = player.isOp
                     try {

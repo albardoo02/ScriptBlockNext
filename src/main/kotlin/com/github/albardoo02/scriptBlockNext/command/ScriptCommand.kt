@@ -84,45 +84,47 @@ class ScriptCommand: CommandExecutor, TabCompleter {
                 return listOf("create", "add", "remove").filter { it.startsWith(args[1], ignoreCase = true) }
             }
         }
+
         if (args.size >= 3 && first in listOf("interact", "break", "walk", "hit")) {
-            val action = args[1].lowercase()
-            if (action in listOf("create", "add")) {
-                val currentArg = args.last()
-                val prevArg = if (args.size >= 4) args[args.size - 2] else ""
+            val currentArg = args.last()
+            val fullString = args.drop(2).joinToString(" ")
 
-                val isCommandContext = prevArg.endsWith("[@command") ||
-                        prevArg.endsWith("[@console") ||
-                        prevArg.contains("[@bypass")
-                if (isCommandContext) {
-                    val serverCommands = Bukkit.getHelpMap().helpTopics.map { it.name.removePrefix("/") }
-                        .filter { it.isNotBlank() && !it.contains(":") }
-                    return serverCommands.filter { it.startsWith(currentArg, ignoreCase = true) }
-                }
+            val commandTags = listOf("[@command ", "[@console ", "[@bypass ", "[@bypassPERM:", "[@bypassGROUP:")
+            val activeTag = commandTags.find { tag ->
+                val lastIndex = fullString.lastIndexOf(tag)
+                lastIndex != -1 && !fullString.substring(lastIndex).contains("]")
+            }
 
-                val options = listOf(
-                    "[@action:", "[@blocktype:", "[@group:", "[@perm:", "[@drole:", "[@dchannel:",
-                    "[@if ", "[@oldcooldown:", "[@cooldown:", "[@delay:", "[@hand:", "[\$item:", "[\$cost:",
-                    "[@groupADD:", "[@groupREMOVE:", "[@permADD:", "[@permREMOVE:", "[@droleADD:", "[@droleREMOVE:",
-                    "[@say ", "[@server ", "[@player ", "[@sound:", "[@title:", "[@actionbar:",
-                    "[@bypass ", "[@bypassPERM:", "[@bypassGROUP:", "[@command ", "[@console ",
-                    "[@execute:", "[@amount:", "[@invalid]",
-                    "[@velocity:", "[@checkpoint]", "[@return]", "[@nofall:", "[@potion:"
-                )
+            if (activeTag != null) {
+                // タグの直後の文字列を取得
+                val cmdPart = fullString.substring(fullString.lastIndexOf(activeTag) + activeTag.length)
+                val completions = Bukkit.getHelpMap().helpTopics
+                    .map { it.name.removePrefix("/").lowercase() }
+                    .filter { it.isNotBlank()}
+                    .filter { it.startsWith(currentArg.lowercase()) }
 
-                if (currentArg.isEmpty()) return options
-                val lastBracketIndex = currentArg.lastIndexOf('[')
-                if (lastBracketIndex != -1) {
-                    val prefix = currentArg.substring(0, lastBracketIndex)
-                    val checkArg = currentArg.substring(lastBracketIndex)
+                return completions
+            }
 
-                    val matches = options.filter { it.startsWith(checkArg, ignoreCase = true) }
-                    if (matches.isNotEmpty()) {
-                        return matches.map { prefix + it }
-                    }
-                } else {
-                    val matches = options.filter { it.startsWith("[$currentArg", ignoreCase = true) }
-                    if (matches.isNotEmpty()) return matches
-                }
+            val options = listOf(
+                "[@action:", "[@blocktype:", "[@group:", "[@perm:", "[@drole:", "[@dchannel:",
+                "[@if ", "[@oldcooldown:", "[@cooldown:", "[@delay:", "[@hand:", "[\$item:", "[\$cost:",
+                "[@groupADD:", "[@groupREMOVE:", "[@permADD:", "[@permREMOVE:", "[@droleADD:", "[@droleREMOVE:",
+                "[@say ", "[@server ", "[@player ", "[@sound:", "[@title:", "[@actionbar:",
+                "[@bypass ", "[@bypassPERM:", "[@bypassGROUP:", "[@command ", "[@console ",
+                "[@execute:", "[@amount:", "[@invalid]",
+                "[@velocity:", "[@checkpoint]", "[@return]", "[@nofall:", "[@potion:"
+            )
+
+            if (currentArg.isEmpty()) return options
+
+            val lastBracketIndex = currentArg.lastIndexOf('[')
+            if (lastBracketIndex != -1) {
+                val prefix = currentArg.substring(0, lastBracketIndex)
+                val checkArg = currentArg.substring(lastBracketIndex)
+                return options.filter { it.startsWith(checkArg, ignoreCase = true) }.map { prefix + it }
+            } else {
+                return options.filter { it.startsWith("[$currentArg", ignoreCase = true) }
             }
         }
         return emptyList()
