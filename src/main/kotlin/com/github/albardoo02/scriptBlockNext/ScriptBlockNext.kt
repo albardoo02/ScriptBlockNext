@@ -1,6 +1,7 @@
 package com.github.albardoo02.scriptBlockNext
 
 import com.github.albardoo02.scriptBlockNext.command.ScriptCommand
+import com.github.albardoo02.scriptBlockNext.hook.LuckPermsManager
 import com.github.albardoo02.scriptBlockNext.hook.MythicMobsManager
 import com.github.albardoo02.scriptBlockNext.listener.InteractListener
 import com.github.albardoo02.scriptBlockNext.listener.ScriptListener
@@ -24,12 +25,23 @@ class ScriptBlockNext : JavaPlugin() {
         instance = this
         MessageManager.init(this)
         PlaceholderManager.init(this)
+
         MythicMobsManager.init(this)
+        LuckPermsManager.init(this)
+        val hasVault = setupEconomy()
 
         disableAndRenameOldPlugin()
 
-        if (!setupEconomy()) {
-            logger.warning("Vault is not found. Continuing without economy features.")
+        val hookedPlugins = mutableListOf<String>()
+        if (hasVault) hookedPlugins.add("Vault")
+        if (server.pluginManager.isPluginEnabled("PlaceholderAPI")) hookedPlugins.add("PlaceholderAPI")
+        if (MythicMobsManager.isHooked) hookedPlugins.add("MythicMobs")
+        if (LuckPermsManager.isHooked) hookedPlugins.add("LuckPerms")
+
+        if (hookedPlugins.isNotEmpty()) {
+            logger.info("外部プラグインと連携しました: ${hookedPlugins.joinToString(", ")}")
+        } else {
+            logger.info("連携している外部プラグインはありません。")
         }
 
         val scriptCommand = ScriptCommand()

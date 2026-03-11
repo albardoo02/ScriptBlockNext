@@ -9,6 +9,7 @@ softdepend:
   - Vault
   - PlaceholderAPI
   - MythicMobs
+  - LuckPerms
   - ScriptBlockPlus
 
 commands:

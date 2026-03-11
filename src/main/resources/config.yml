@@ -6,3 +6,7 @@ prefix: "&7[&bScriptBlockNext&7]"
 # Migrate from ScriptBlockPlus
 # If the migration is finished, set to false automatically
 migrate_from_scriptblockplus: true
+
+# Script log setting
+# If true, If the player executes a script, the output will be displayed in the console
+output_script_log: true

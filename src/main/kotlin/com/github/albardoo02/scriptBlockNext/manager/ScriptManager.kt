@@ -69,6 +69,7 @@ object ScriptManager {
         migrateFromScriptBlockPlus()
         val jsonFiles = scriptsFolder.listFiles { file -> file.extension == "json" } ?: return
         for (file in jsonFiles) {
+            val scriptType = file.nameWithoutExtension
             try {
                 FileReader(file).use { reader ->
                     val jsonObject = gson.fromJson(reader, JsonObject::class.java) ?: return@use
@@ -85,9 +86,8 @@ object ScriptManager {
                             val blockLoc = BlockLocation(worldName, x, y, z)
                             val entry = gson.fromJson(coordEntry.value, ScriptEntry::class.java)
                             val creator = entry.creator?.let { runCatching { UUID.fromString(it) }.getOrNull() }
-                            val data = ScriptData(entry.commands, entry.type, creator)
-
-                            scripts.getOrPut(entry.type) { mutableMapOf() }[blockLoc] = data
+                            val data = ScriptData(entry.commands, scriptType, creator)
+                            scripts.getOrPut(scriptType) { mutableMapOf() }[blockLoc] = data
                         }
                     }
                 }
@@ -160,7 +160,6 @@ object ScriptManager {
                     for ((loc, data) in typeMap) {
                         val coordsStr = "${loc.x}, ${loc.y}, ${loc.z}"
                         val entry = ScriptEntry(
-                            type = data.type,
                             commands = data.commands,
                             creator = data.creator?.toString()
                         )
@@ -168,7 +167,7 @@ object ScriptManager {
                     }
                     val file = File(scriptsFolder, "$type.json")
                     FileWriter(file).use { writer ->
-                        gson.toJson(worldMap, writer) // ★完成した2重Mapを保存
+                        gson.toJson(worldMap, writer)
                     }
                 }
             } catch (e: Exception) {

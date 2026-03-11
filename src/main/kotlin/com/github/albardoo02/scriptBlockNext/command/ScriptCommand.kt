@@ -1,5 +1,6 @@
 package com.github.albardoo02.scriptBlockNext.command
 
+import com.github.albardoo02.scriptBlockNext.hook.MythicMobsManager
 import com.github.albardoo02.scriptBlockNext.manager.ScriptManager
 import com.github.albardoo02.scriptBlockNext.manager.sendMsg
 import org.bukkit.Bukkit
@@ -55,6 +56,26 @@ class ScriptCommand: CommandExecutor, TabCompleter {
             return true
         }
         when (action) {
+            "view", "info" -> {
+                val targetBlock = sender.getTargetBlockExact(5)
+                if (targetBlock == null) {
+                    sender.sendMessage("§c視点をブロックに合わせて下さい。")
+                    return true
+                }
+                val data = ScriptManager.getScript(targetBlock.location, type)
+                if (data == null) {
+                    sender.sendMessage("§cこのブロックに${type}のスクリプトは設定されていません。")
+                } else {
+                    sender.sendMessage("§e=== ScriptBlockNext Info ===")
+                    sender.sendMessage("§7タイプ: §b${data.type}")
+                    sender.sendMessage("§7登録者: §b${data.creator ?: "不明"}")
+                    sender.sendMessage("§7コマンド一覧:")
+                    data.commands.forEachIndexed { i, c ->
+                        sender.sendMessage("§8[§7${i + 1}§8] §f$c")
+                    }
+                    sender.sendMessage("§e==========================")
+                }
+            }
             "create", "add" -> {
                 if (args.size < 3) {
                     sender.sendMsg("cmd_usage_args", "type" to type, "action" to action)
@@ -130,21 +151,42 @@ class ScriptCommand: CommandExecutor, TabCompleter {
                 }
             }
 
-            val options = listOf(
+            val baseOptions = mutableListOf(
                 "[@action:", "[@blocktype:", "[@group:", "[@perm:", "[@drole:", "[@dchannel:",
                 "[@if ", "[@oldcooldown:", "[@cooldown:", "[@delay:", "[@hand:", $$"[$item:", $$"[$cost:",
                 "[@groupADD:", "[@groupREMOVE:", "[@permADD:", "[@permREMOVE:", "[@droleADD:", "[@droleREMOVE:",
                 "[@say ", "[@server ", "[@player ", "[@sound:", "[@title:", "[@actionbar:",
-                "[@bypass ", "[@bypassPERM:", "[@bypassGROUP:", "[@cmd", "[@command ", "[@console ",
-                "[@execute:", "[@amount:", "[@invalid]", "[@broadcast", "[@message",
-                "[@velocity:", "[@checkpoint]", "[@return]", "[@nofall:", "[@potion:", "[@mythic:"
+                "[@bypass ", "[@bypassPERM:", "[@bypassGROUP:", "[@cmd ", "[@command ", "[@console ",
+                "[@execute:", "[@amount:", "[@invalid]", "[@broadcast ", "[@message ", "[@msg ",
+                "[@velocity:", "[@checkpoint]", "[@return]", "[@nofall:", "[@potion:"
             )
 
+            if (MythicMobsManager.isHooked) {
+                baseOptions.addAll(listOf("[\$mythic:", "[@mythic:", "[\$mythicItem:", "[@mythicItem:"))
+            }
+            val options = baseOptions.toList()
+
             val lastBracket = currentArg.lastIndexOf('[')
-            return if (lastBracket != null && lastBracket != -1) {
+            return if (lastBracket != -1) {
                 val prefix = currentArg.substring(0, lastBracket)
-                val filter = currentArg.substring(lastBracket)
-                options.filter { it.startsWith(filter, ignoreCase = true) }.map { prefix + it }
+                val checkArg = currentArg.substring(lastBracket)
+                if (MythicMobsManager.isHooked) {
+                    val mythicPrefixes = listOf(
+                        "[@mythic:", $$"[$mythic:", "[!@mythic:", $$"[!$mythic:",
+                        "[@mythicItem:", $$"[$mythicItem:", "[!@mythicItem:", $$"[!$mythicItem:"
+                    )
+                    val activePrefix = mythicPrefixes.find { checkArg.startsWith(it, ignoreCase = true) }
+
+                    if (activePrefix != null) {
+                        val typedIdAndAmount = checkArg.substring(activePrefix.length)
+                        if (!typedIdAndAmount.contains(":")) {
+                            val availableIds = MythicMobsManager.getAvailableItemIds()
+                            return availableIds.filter { it.startsWith(typedIdAndAmount, ignoreCase = true) }
+                                .map { prefix + activePrefix + it }
+                        }
+                    }
+                }
+                options.filter { it.startsWith(checkArg, ignoreCase = true) }.map { prefix + it }
             } else {
                 options.filter { it.startsWith("[$currentArg", ignoreCase = true) }
             }

@@ -17,7 +17,6 @@ data class BlockLocation(
 )
 
 data class ScriptEntry(
-    val type: String,
     val commands: List<String>,
     val creator: String? = null
 )

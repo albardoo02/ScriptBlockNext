@@ -2,6 +2,7 @@ package com.github.albardoo02.scriptBlockNext.executor
 
 import com.github.albardoo02.scriptBlockNext.ScriptBlockNext
 import com.github.albardoo02.scriptBlockNext.data.ScriptData
+import com.github.albardoo02.scriptBlockNext.hook.LuckPermsManager
 import com.github.albardoo02.scriptBlockNext.hook.MythicMobsManager
 import com.github.albardoo02.scriptBlockNext.hook.PlaceholderManager
 import com.github.albardoo02.scriptBlockNext.manager.ScriptManager
@@ -94,25 +95,23 @@ object ScriptExecutor {
                 val mat = Material.matchMaterial(parts[0].uppercase())
                 val isMatch = player.inventory.itemInMainHand.type == mat
                 if (if (isInverted) isMatch else !isMatch) return
-            } else if (cleanCmd.startsWith($$"$mythic:")) {
-                val parts = cleanCmd.substringAfter($$"$mythic:").split(":")
-                if (parts.size >= 2) {
-                    val mythicId = parts[0]
-                    val amount = parts[1].toIntOrNull() ?: 1
-                    if (isInverted) {
-                        if (MythicMobsManager.countMythicItem(player, mythicId) >= amount) return
-                    } else {
-                        requiredMythicItems[mythicId] = (requiredMythicItems[mythicId] ?: 0) + amount
-                    }
+            } else if (cleanCmd.startsWith($$"$mythic:", ignoreCase = true) || cleanCmd.startsWith($$"$mythicItem:", ignoreCase = true)) {
+                val prefix = if (cleanCmd.startsWith($$"$mythic:", ignoreCase = true)) $$"$mythic:" else $$"$mythicItem:"
+                val parts = cleanCmd.substring(prefix.length).split(":")
+                val mythicId = parts[0]
+                val amount = parts.getOrNull(1)?.toIntOrNull() ?: 1
+                if (isInverted) {
+                    if (MythicMobsManager.countMythicItem(player, mythicId) >= amount) return
+                } else {
+                    requiredMythicItems[mythicId] = (requiredMythicItems[mythicId] ?: 0) + amount
                 }
-            } else if (cleanCmd.startsWith("@mythic:")) {
-                val parts = cleanCmd.substringAfter("@mythic:").split(":")
-                if (parts.size >= 2) {
-                    val mythicId = parts[0]
-                    val amount = parts[1].toIntOrNull() ?: 1
-                    val hasEnough = MythicMobsManager.countMythicItem(player, mythicId) >= amount
-                    if (if (isInverted) hasEnough else !hasEnough) return
-                }
+            } else if (cleanCmd.startsWith("@mythic:", ignoreCase = true) || cleanCmd.startsWith("@mythicItem:", ignoreCase = true)) {
+                val prefix = if (cleanCmd.startsWith("@mythic:", ignoreCase = true)) "@mythic:" else "@mythicItem:"
+                val parts = cleanCmd.substring(prefix.length).split(":")
+                val mythicId = parts[0]
+                val amount = parts.getOrNull(1)?.toIntOrNull() ?: 1
+                val hasEnough = MythicMobsManager.countMythicItem(player, mythicId) >= amount
+                if (if (isInverted) hasEnough else !hasEnough) return
             } else if (cleanCmd.startsWith("@if ")) {
                 val ifArgs = cleanCmd.substringAfter("@if ").split(" ", limit = 4)
                 if (ifArgs.size >= 3) {
@@ -179,11 +178,12 @@ object ScriptExecutor {
 
             val isInverted = cmd.startsWith("!")
             val activeCmd = if (isInverted) cmd.substring(1) else cmd
-
-            if (activeCmd.startsWith($$"$cost:") || activeCmd.startsWith($$"$item:") ||
+            if (activeCmd.startsWith("\$cost:") || activeCmd.startsWith("\$item:") ||
                 activeCmd.startsWith("@if ") || activeCmd.startsWith("@cooldown:") ||
                 activeCmd.startsWith("@oldcooldown:") || activeCmd.startsWith("@action:") ||
-                activeCmd.startsWith("@hand:")) continue
+                activeCmd.startsWith("@hand:") ||
+                activeCmd.startsWith("@mythic:", ignoreCase = true) || activeCmd.startsWith("@mythicItem:", ignoreCase = true) ||
+                activeCmd.startsWith($$"$mythic:", ignoreCase = true) || activeCmd.startsWith($$"$mythicItem:", ignoreCase = true)) continue
             if (activeCmd.startsWith("@delay:")) {
                 val rawData = activeCmd.substringAfter("@delay:")
                 val braceIdx = rawData.indexOf('{')
@@ -231,8 +231,11 @@ object ScriptExecutor {
             }
 
             when {
-                rawLine.startsWith("@player ") || rawLine.startsWith("@msg ") -> player.sendMessage(activeCmd.substringAfter(" "))
-                activeCmd.startsWith("@server ") -> Bukkit.broadcastMessage(activeCmd.substringAfter("@server "))
+                rawLine.startsWith("@player ") || rawLine.startsWith("@msg ") || rawLine.startsWith("@message ") -> player.sendMessage(activeCmd.substringAfter(" "))
+                activeCmd.startsWith("@server ") || activeCmd.startsWith("@broadcast ") -> {
+                    val msg = if (activeCmd.startsWith("@server ")) activeCmd.substringAfter("@server ") else activeCmd.substringAfter("@broadcast ")
+                    Bukkit.broadcastMessage(msg)
+                }
                 activeCmd.startsWith("@command ") -> player.performCommand(activeCmd.substringAfter("@command ").trim().removePrefix("/"))
                 activeCmd.startsWith("@console ") -> Bukkit.dispatchCommand(Bukkit.getConsoleSender(), activeCmd.substringAfter("@console ").trim().removePrefix("/"))
                 activeCmd.startsWith("@bypass ") -> {
@@ -262,6 +265,29 @@ object ScriptExecutor {
                 activeCmd.startsWith("@title:") -> {
                     val titleData = activeCmd.substringAfter("@title:").split("/")
                     player.sendTitle(titleData.getOrNull(0) ?: "", titleData.getOrNull(1) ?: "", 10, 70, 20)
+                }
+                activeCmd.startsWith("@bypassroup:") -> {
+                    val data = activeCmd.substringAfter("@bypassgroup:").trim()
+                    val spaceIdx = data.indexOf(' ')
+                    if (spaceIdx != -1) {
+                        val groupInfo = data.substring(0, spaceIdx)
+                        val commandToRun = data.substring(spaceIdx + 1).trim().removePrefix("/")
+                        val group = groupInfo.substringAfter("/")
+                        LuckPermsManager.addGroup(player, group)
+                        try {
+                            player.performCommand(commandToRun)
+                        } finally {
+                            LuckPermsManager.removeGroup(player, group)
+                        }
+                    }
+                }
+                activeCmd.startsWith("@groupadd:") -> {
+                    val group = activeCmd.substringAfter("@groupadd:").substringAfter("/")
+                    LuckPermsManager.addGroup(player, group)
+                }
+                activeCmd.startsWith("@groupremove:") -> {
+                    val group = activeCmd.substringAfter("@groupremove:").substringAfter("/")
+                    LuckPermsManager.removeGroup(player, group)
                 }
                 else -> {
                     if (!activeCmd.startsWith("@") && !activeCmd.startsWith("$")) player.performCommand(activeCmd.trim().removePrefix("/"))
