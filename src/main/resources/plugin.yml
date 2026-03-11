@@ -5,7 +5,9 @@ description: ScriptBlockPlusを改良したヤツ
 author: albardoo02
 website: https://github.com/albardoo02/ScriptBlockNext
 api-version: '1.13'
-softdepend: [Vault]
+softdepend:
+  - Vault
+  - ScriptBlockPlus
 
 commands:
   scriptblocknext:
