@@ -39,7 +39,12 @@ info_commands_header: "&7コマンド一覧:"
 info_command_line: "&8[&7{index}&8] &f{command}"
 info_footer: "&e=========================="
 
+# クリップボード・ペースト
+error_empty_clipboard: "&cエラー: クリップボードが空です。先に /sbn <type> copy でスクリプトをコピーしてください。"
+success_copied: "&a{type} のスクリプトをクリップボードにコピーしました。 (/sbn selector paste で貼り付け可能です)"
+success_pasted: "&a選択範囲内の {count} 個のブロックに {type} のスクリプトをペーストしました。"
+
 # 移行ツール
 error_migration_not_found: "&cScriptBlockPlusのフォルダが見つかりませんでした。"
 error_migration_no_data: "&c移行可能なデータが見つかりませんでした。"
-success_migration: "&aScriptBlockPlusからの移行が完了しました！ ({count}個のスクリプト)"
+success_migration: "&aScriptBlockPlusからの移行が完了しました ({count}個のスクリプト)"

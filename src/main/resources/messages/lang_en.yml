@@ -39,7 +39,12 @@ info_commands_header: "&7Commands:"
 info_command_line: "&8[&7{index}&8] &f{command}"
 info_footer: "&e=========================="
 
+# Clipboard & Paste
+error_empty_clipboard: "&cError: Clipboard is empty. Copy a script first using /sbn <type> copy."
+success_copied: "&aCopied the {type} script to your clipboard (You can paste it using /sbn selector paste)"
+success_pasted: "&aPasted the {type} script to {count} blocks in the selection"
+
 # Migration Tool
 error_migration_not_found: "&cScriptBlockPlus folder was not found."
 error_migration_no_data: "&cNo valid data found to migrate."
-success_migration: "&aMigration from ScriptBlockPlus completed successfully! ({count} scripts)"
+success_migration: "&aMigration from ScriptBlockPlus completed successfully ({count} scripts)"

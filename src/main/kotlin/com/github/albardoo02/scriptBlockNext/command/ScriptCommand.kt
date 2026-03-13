@@ -117,6 +117,48 @@ class ScriptCommand: CommandExecutor, TabCompleter {
                 sender.sendMsg("selector_removed", "count" to count.toString())
                 return true
             }
+            if (subCmd == "paste") {
+                val selection = SelectorManager.getSelection(sender)
+                if (selection == null) {
+                    sender.sendMsg("error_selection_incomplete")
+                    return true
+                }
+                val clipData = SelectorManager.clipboard[sender.uniqueId]
+                if (clipData == null) {
+                    sender.sendMsg("error_empty_clipboard")
+                    return true
+                }
+                val pasteOnAir = args.getOrNull(2).toBoolean()
+                val overwrite = args.getOrNull(3)?.toBoolean() ?: true
+
+                val p1 = selection.first
+                val p2 = selection.second
+                val world = p1.world
+                var count = 0
+
+                val minX = min(p1.blockX, p2.blockX)
+                val minY = min(p1.blockY, p2.blockY)
+                val minZ = min(p1.blockZ, p2.blockZ)
+                val maxX = max(p1.blockX, p2.blockX)
+                val maxY = max(p1.blockY, p2.blockY)
+                val maxZ = max(p1.blockZ, p2.blockZ)
+
+                for (x in minX..maxX) {
+                    for (y in minY..maxY) {
+                        for (z in minZ..maxZ) {
+                            val loc = org.bukkit.Location(world, x.toDouble(), y.toDouble(), z.toDouble())
+                            val block = loc.block
+                            if (!pasteOnAir && block.type == org.bukkit.Material.AIR) continue
+                            val existing = ScriptManager.getScript(loc, clipData.type)
+                            if (!overwrite && existing != null) continue
+                            ScriptManager.addScript(loc, clipData)
+                            count++
+                        }
+                    }
+                }
+                sender.sendMsg("success_pasted", "count" to count.toString(), "type" to clipData.type)
+                return true
+            }
             return true
         }
 
@@ -160,6 +202,20 @@ class ScriptCommand: CommandExecutor, TabCompleter {
                         sender.sendMsg("info_command_line", "index" to (i + 1).toString(), "command" to c)
                     }
                     sender.sendMsg("info_footer")
+                }
+            }
+            "copy" -> {
+                val targetBlock = sender.getTargetBlockExact(5)
+                if (targetBlock == null) {
+                    sender.sendMsg("error_look_at_block")
+                    return true
+                }
+                val data = ScriptManager.getScript(targetBlock.location, type)
+                if (data == null) {
+                    sender.sendMsg("error_no_script_info", "type" to type)
+                } else {
+                    SelectorManager.clipboard[sender.uniqueId] = data
+                    sender.sendMsg("success_copied", "type" to type)
                 }
             }
             "create", "add" -> {
@@ -218,9 +274,16 @@ class ScriptCommand: CommandExecutor, TabCompleter {
             return listOf("remove", "paste").filter { it.startsWith(args[1], ignoreCase = true) }
         }
 
+        if (first == "selector" && args.size >= 3) {
+            if (args[1].lowercase() == "paste") {
+                return listOf("true", "false").filter { it.startsWith(args.last(), ignoreCase = true) }
+            }
+            return emptyList()
+        }
+
         if (args.size == 2 && first in listOf("interact", "break", "walk", "hit")) {
             if (!sender.hasPermission("scriptblocknext.command.$first")) return emptyList()
-            return listOf("create", "add", "remove", "view", "info").filter { it.startsWith(args[1], ignoreCase = true) }
+            return listOf("create", "add", "remove", "view", "info", "copy").filter { it.startsWith(args[1], ignoreCase = true) }
         }
 
         if (args.size >= 3 && first in listOf("interact", "break", "walk", "hit")) {
