@@ -9,4 +9,4 @@ migrate_from_scriptblockplus: true
 
 # Script log setting
 # If true, If the player executes a script, the output will be displayed in the console
-output_script_log: true
+output_script_log: false

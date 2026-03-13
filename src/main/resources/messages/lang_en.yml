@@ -38,3 +38,8 @@ info_creator: "&7Creator: &b{creator}"
 info_commands_header: "&7Commands:"
 info_command_line: "&8[&7{index}&8] &f{command}"
 info_footer: "&e=========================="
+
+# Migration Tool
+error_migration_not_found: "&cScriptBlockPlus folder was not found."
+error_migration_no_data: "&cNo valid data found to migrate."
+success_migration: "&aMigration from ScriptBlockPlus completed successfully! ({count} scripts)"

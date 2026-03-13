@@ -151,7 +151,9 @@ class ScriptCommand: CommandExecutor, TabCompleter {
                 } else {
                     sender.sendMsg("info_header")
                     sender.sendMsg("info_type", "type" to data.type)
-                    val creatorName = data.creator?.toString() ?: "Unknown"
+                    val creatorName = data.creator?.let { uuid ->
+                        Bukkit.getOfflinePlayer(uuid).name ?: uuid.toString()
+                    } ?: "Unknown"
                     sender.sendMsg("info_creator", "creator" to creatorName)
                     sender.sendMsg("info_commands_header")
                     data.commands.forEachIndexed { i, c ->
@@ -205,6 +207,7 @@ class ScriptCommand: CommandExecutor, TabCompleter {
             if (sender.hasPermission("scriptblocknext.command.reload")) firstArgs.add("reload")
             if (sender.hasPermission("scriptblocknext.command.tool")) firstArgs.add("tool")
             if (sender.hasPermission("scriptblocknext.command.selector")) firstArgs.add("selector")
+            if (sender.hasPermission("scriptblocknext.command.datamigr")) firstArgs.add("datamigr")
             return firstArgs.filter { it.startsWith(args[0], ignoreCase = true) }
         }
 
@@ -226,7 +229,7 @@ class ScriptCommand: CommandExecutor, TabCompleter {
             val currentArg = args.last()
             val fullInput = args.drop(2).joinToString(" ")
 
-            val commandTags = listOf("[@command ", "[@console ", "[@bypass ", "[@bypassPERM:", "[@bypassGROUP:")
+            val commandTags = listOf("[@command ", "[@console ", "[@bypass ", "[@bypassPerm:", "[@bypassGroup:")
             val activeTag = commandTags.find { tag ->
                 val lastIdx = fullInput.lastIndexOf(tag)
                 lastIdx != -1 && !fullInput.substring(lastIdx).contains("]")
@@ -253,24 +256,24 @@ class ScriptCommand: CommandExecutor, TabCompleter {
             }
 
             var baseOptions = listOf(
-                "[@action:", "[@blocktype:", "[@delay:", "[@cooldown:",
-                "[@oldcooldown:", $$"[$item:", "[@command ", "[@msg ", "[@player ",
-                "[@server ", "[@console ", "[@bypass ", "[@sound:", "[@title:", "[@actionbar:",
-                "[@velocity:", "[@checkpoint]", "[@return]", "[@nofall:", "[@potion:",
-                "[@if ", "[@hand:", "[@bypassPERM:"
+                "[@action:", "[@blockType:", "[@delay:", "[@cooldown:",
+                "[@oldCooldown:", $$"[$item:", "[@command ", "[@msg ", "@message ", "[@player ",
+                "[@server ", "[@console ", "[@bypass ", "[@sound:", "[@title:", "[@actionBar:",
+                "[@velocity:", "[@checkpoint]", "[@return]", "[@noFall:", "[@potion:",
+                "[@if ", "[@hand:", "[@bypassPerm:"
             )
 
             if (VaultManager.isHooked) {
                 baseOptions = baseOptions + listOf($$"[$cost:")
             }
             if (DiscordSRVManager.isHooked) {
-                baseOptions = baseOptions + listOf("[@drole:", "[@dchannel:", "[@droleADD:", "[@droleREMOVE:")
+                baseOptions = baseOptions + listOf("[@dRole:", "[@dChannel:", "[@dRoleAdd:", "[@dRoleRemove:")
             }
             if (LuckPermsManager.isHooked) {
-                baseOptions = baseOptions + listOf("[@group:", "[@groupADD:", "[@groupREMOVE:", "[@bypassGROUP:")
+                baseOptions = baseOptions + listOf("[@group:", "[@groupAdd:", "[@groupRemove:", "[@bypassGroup:")
             }
             if (MythicMobsManager.isHooked) {
-                baseOptions = baseOptions + listOf($$"[$mythic:", "[@mythic:", $$"[$mythicItem:", "[@mythicItem:")
+                baseOptions = baseOptions + listOf("[@mmid:")
             }
 
             val options = baseOptions
@@ -281,8 +284,7 @@ class ScriptCommand: CommandExecutor, TabCompleter {
                 val checkArg = currentArg.substring(lastBracket)
                 if (MythicMobsManager.isHooked) {
                     val mythicPrefixes = listOf(
-                        "[@mythic:", $$"[$mythic:", "[!@mythic:", $$"[!$mythic:",
-                        "[@mythicItem:", $$"[$mythicItem:", "[!@mythicItem:", $$"[!$mythicItem:"
+                        "[@mmid:", "[!@mmid:"
                     )
                     val activePrefix = mythicPrefixes.find { checkArg.startsWith(it, ignoreCase = true) }
 
