@@ -1,6 +1,5 @@
 # ScriptBlockNext
 
-## 概要
 ScriptBlockPlusの主要機能を再現し、軽量化を行ったプラグインです。
 
 また、MythicMobsなど、新たな連携プラグインをサポートしています。
